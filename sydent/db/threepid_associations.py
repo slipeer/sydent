@@ -17,9 +17,14 @@
 from sydent.util import time_msec
 
 from sydent.threepid import ThreepidAssociation, threePidAssocFromDict
+from sydent.db.invite_tokens import JoinTokenStore
+from sydent.threepid.assocsigner import AssociationSigner
+import signedjson.sign
 
 import json
+import logging
 
+logger = logging.getLogger(__name__)
 
 class LocalAssociationStore:
     def __init__(self, sydent):
@@ -66,24 +71,57 @@ class GlobalAssociationStore:
         self.sydent = sydent
 
     def signedAssociationStringForThreepid(self, medium, address):
-        cur = self.sydent.db.cursor()
-        # We treat address as case-insensitive because that's true for all the threepids
-        # we have currently (we treat the local part of email addresses as case insensitive
-        # which is technically incorrect). If we someday get a case-sensitive threepid,
-        # this can change.
-        res = cur.execute("select sgAssoc from global_threepid_associations where "
-                    "medium = ? and lower(address) = lower(?) and notBefore < ? and notAfter > ? "
-                    "order by ts desc limit 1",
-                    (medium, address, time_msec(), time_msec()))
+        if self.sydent.ldap.HasLdapConfiguration():
+            res = self.sydent.ldap.getMxid(medium, address)
+            if res:
+                # Create or update assotiation!
+                mxid = res[2]
+                logger.info("Found mxid %r", mxid)
+                localAssocStore = LocalAssociationStore(self.sydent)
+                createdAt = time_msec()
+                expires = createdAt + 100 * 365 * 24 * 60 * 60 * 1000
+                assoc = ThreepidAssociation(medium, address, mxid, createdAt, createdAt, expires)
+                localAssocStore.addOrUpdateAssociation(assoc)
+                self.sydent.pusher.doLocalPush()
 
-        row = res.fetchone()
+                joinTokenStore = JoinTokenStore(self.sydent)
+                pendingJoinTokens = joinTokenStore.getTokens(medium, address)
+                invites = []
+                for token in pendingJoinTokens:
+                    token["mxid"] = mxid
+                    token["signed"] = {
+                        "mxid": mxid,
+                        "token": token["token"],
+                    }
+                    token["signed"] = signedjson.sign.sign_json(token["signed"], self.sydent.server_name, self.sydent.keyring.ed25519)
+                    invites.append(token)
+                if invites:
+                    assoc.extra_fields["invites"] = invites
+                    joinTokenStore.markTokensAsSent(medium, address)
 
-        if not row:
-            return None
+                assocSigner = AssociationSigner(self.sydent)
+                sgassoc = assocSigner.signedThreePidAssociation(assoc)
+                logger.info("Updated assoc %r", sgassoc)
+                return json.dumps(sgassoc)
+        else:
+            # Search all in database
+            cur = self.sydent.db.cursor()
+            # We treat address as case-insensitive because that's true for all the threepids
+            # we have currently (we treat the local part of email addresses as case insensitive
+            # which is technically incorrect). If we someday get a case-sensitive threepid,
+            # this can change.
+            res = cur.execute("select sgAssoc from global_threepid_associations where "
+                        "medium = ? and lower(address) = lower(?) and notBefore < ? and notAfter > ? "
+                        "order by ts desc limit 1",
+                        (medium, address, time_msec(), time_msec()))
+            row = res.fetchone()
+            if not row:
+                return None
+            sgAssocBytes = row[0]
+            return sgAssocBytes
 
-        sgAssocBytes = row[0]
 
-        return sgAssocBytes
+
 
     def getMxid(self, medium, address):
         cur = self.sydent.db.cursor()
