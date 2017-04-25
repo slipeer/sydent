@@ -54,12 +54,13 @@ Having installed dependencies, you can run sydent using::
 
 This will create a configuration file in sydent.conf with some defaults. You'll most likely want to change the server name and specify a mail relay.
 
-<<<<<<< HEAD
 LDAP configuration
 ==================
 
 See `<LDAP.rst>`_ for details.
-=======
+
+SMS configuration
+=================
 Defaults for SMS originators will not be added to the generated config file, these should be added in the form::
 
     originators.<country code> = <long|short|alpha>:<originator>
@@ -69,7 +70,6 @@ Where country code is the numeric country code, or 'default' to specify the orig
     originators.1 = long:12125552368,long:12125552369
     originators.44 = short:12345
     originators.default = alpha:Matrix
->>>>>>> refs/remotes/matrix-org/master
 
 Requests
 ========
