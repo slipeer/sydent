@@ -9,6 +9,8 @@ EnvironmentFile=/etc/default/matrix-sydent
 ExecStart=/usr/bin/python -m sydent.sydent /etc/matrix-sydent/sydent.conf
 Restart=always
 RestartSec=3
+RuntimeDirectory=matrix-sydent
+RuntimeDirectoryMode=750
 
 [Install]
 WantedBy=multi-user.target
