@@ -23,12 +23,15 @@ Example LDAP config section
     uri = ldap://example.com:389/
     startls =  false
     base = dc=example,dc=com
-    mail_attr = mail
+    # Mail attribute name
+    email = mail
+    # Phone attribute name
+    msisdn = phone
     id_attr = samaccountname
     # if hs_name empty we assume that id_attr contain users matrix id
     # othercase we generate matrix id as @id_attr:hs_name
     hs_name = example.com
-    bind_dn = cn=namager,cn=users,dc=example,dc=com
+    bind_dn = cn=manager,cn=users,dc=example,dc=com
     bind_pw = secret
     filter = (&(objectClass=user)(objectCategory=person))
 

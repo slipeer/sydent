@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import logging
-import os
 
 
 try:
@@ -54,14 +53,13 @@ class LDAPDatabase:
             logger.info("Missing ldap3 library. This is required for LDAP integration")
             return
 
-
-
         self.sydent = syd
 
         self.ldap_uri = self.sydent.cfg.get("ldap", "uri")
         self.start_tls = self.sydent.cfg.get("ldap", "startls")
         self.base = self.sydent.cfg.get("ldap", "base")
-        self.mail_attr = self.sydent.cfg.get("ldap", "mail_attr")
+        self.email = self.sydent.cfg.get("ldap", "email")
+        self.msisdn = self.sydent.cfg.get("ldap", "msisdn")
         self.id_attr = self.sydent.cfg.get("ldap", "id_attr").replace('"','').replace("'","")
         self.hs_name = self.sydent.cfg.get("ldap", "hs_name").replace('"','').replace("'","")
         self.bind_dn = self.sydent.cfg.get("ldap", "bind_dn")
@@ -77,8 +75,10 @@ class LDAPDatabase:
             return False
 
     def getMxid(self,medium,address):
-        if (not medium == "email"):
-            # Support only Email from LDAP
+        if hasattr(self, medium):
+            searchAttr = getattr(self, medium)
+        else:
+            logger.warning("Unsupported or unconfigured 3pid medium: %r", medium)
             return None
         try:
             server = ldap3.Server(
@@ -101,8 +101,8 @@ class LDAPDatabase:
             else:
                 logger.debug("LDAP bind as %s error: %s", self.bind_dn, conn.result['description'])
             conn.search(search_base=self.base,
-                 search_filter="(&(" + self.mail_attr + "=" + address + ")" + self.ldap_filter + ")",
-                 attributes=[self.mail_attr, self.id_attr]
+                 search_filter="(&(" + searchAttr + "=" + address + ")" + self.ldap_filter + ")",
+                 attributes=[self.id_attr, searchAttr]
             )
             responses = [
                 response
@@ -111,10 +111,10 @@ class LDAPDatabase:
                 if response['type'] == 'searchResEntry'
             ]
 
-            logger.debug("LDAP return %d records for filter: %s", len(responses), "(&(" + self.mail_attr + "=" + address + ")" + self.ldap_filter + ")")
+            logger.debug("LDAP return %d records for filter: %s", len(responses), "(&(" + searchAttr + "=" + address + ")" + self.ldap_filter + ")")
 
             if len(responses) == 1:
-                logger.debug("LDAP found one record with %s = %s", self.mail_attr, address)
+                logger.debug("LDAP found one record with %s = %s", searchAttr, address)
                 # # if hs_name empty we assume that id_attr contain users matrix id
                 # # othercase we generate matrix id as @id_attr:hs_name
                 if (self.hs_name):
