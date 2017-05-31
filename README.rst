@@ -3,12 +3,17 @@ Sydent purpose
 
 In you there is no need to install this component on your server. As an identity server, it is recommended to use matrix.org
 
-You may need to install the sender, for example, if you deploy an isolated system and users will not be able to access the matrix.org
+You may need to install Sydent, for example, if you deploy an isolated system and users will not be able to access the matrix.org
+
+This is fork main task of which is the implementation of the functional:
+
+- 3pid association based on LDAP data
+- proxying to matrix queries that can not be resolved locally
 
 Installation
 ============
 
-1. Сheck that your system has ``sqlite3 >= 3.12`` (Otherwise there will be syntax errors when working with the database)
+1. Сheck that your system has ``sqlite3 >= 3.16`` (Otherwise there will be syntax errors when working with the database)
 
 2. Run ``pip install https://github.com/matrix-org/sydent/tarball/master``
 
@@ -24,15 +29,13 @@ Installation
 
 8. Check that log.path exists and writable by created ``matrix-sydent`` user
 
-9. Create sqlite database ``cat ./sydent/db/*.sql | sed 's/IF\sNOT\sEXISTS\s//i' | sqlite3 /var/lib/matrix-synapse/sydent.db``
+9. Check that db.file writable by created ``matrix-sydent`` user
 
-10. Check that db.file writable by created ``matrix-sydent`` user
+10. Check ownership ``chown -R matrix-synapse <path to templates>``
 
-11. Check ownership ``chown -R matrix-synapse <path to templates>``
+11. Check ownership ``chown -R matrix-synapse /etc/matrix-sydent/``
 
-12. Check ownership ``chown -R matrix-synapse /etc/matrix-sydent/``
-
-13. Config systemd ``cp /systemd/matrix-sydent.service /lib/systemd/system/`` and edit it: 
+12. Config systemd ``cp /systemd/matrix-sydent.service /lib/systemd/system/`` and edit it: 
 
 - check that WorkingDirectory exists and writable; 
 - check that EnvironmentFile exists; 
@@ -54,10 +57,30 @@ Having installed dependencies, you can run sydent using::
 
 This will create a configuration file in sydent.conf with some defaults. You'll most likely want to change the server name and specify a mail relay.
 
-LDAP configuration
-==================
+3pid lookup order
+=================
 
-See `<LDAP.rst>`_ for details.
+Threepid search is performed in the following sequence.
+
+If for one of the stages there is not enough configuration - it is skipped.
+
+Threepid found at an earlier stage takes precedence (the first matching is used).
+
+1. LDAP lookup
+--------------
+
+For ldap configuration details see `<LDAP.rst>`_ .
+
+2. Request proxying
+-------------------
+
+If in config section `[proxy]` present parameter `identity` with URI of other identity server, then `bulk_lookup` request will be sent to this server
+with threepids that can not be found in configured LDAP.
+
+3. Database lookup
+------------------
+
+Perform local database lookup as original sydent server.
 
 SMS configuration
 =================
