@@ -124,6 +124,11 @@ class GlobalAssociationStore:
 
 
     def getMxid(self, medium, address):
+        if self.sydent.ldap.HasLdapConfiguration():
+            res = self.sydent.ldap.getMxid(medium, address)
+            if res:
+                    return res
+
         cur = self.sydent.db.cursor()
         res = cur.execute("select mxid from global_threepid_associations where "
                     "medium = ? and lower(address) = lower(?) and notBefore < ? and notAfter > ? "
