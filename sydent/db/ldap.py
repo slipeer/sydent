@@ -62,8 +62,14 @@ class LDAPDatabase:
         self.ldap_uri = self.sydent.cfg.get("ldap", "uri")
         self.start_tls = self.sydent.cfg.get("ldap", "startls")
         self.base = self.sydent.cfg.get("ldap", "base")
-        self.email = self.sydent.cfg.get("ldap", "email")
-        self.msisdn = self.sydent.cfg.get("ldap", "msisdn")
+        try:
+            self.email = self.sydent.cfg.get("ldap", "email")
+        except:
+            self.email = None
+        try:
+            self.msisdn = self.sydent.cfg.get("ldap", "msisdn")
+        except:
+            self.msisdn = None
         self.id_attr = self.sydent.cfg.get(
             "ldap", "id_attr"
         ).replace('"', '').replace("'", "")
@@ -92,6 +98,8 @@ class LDAPDatabase:
                 "Unsupported or unconfigured 3pid medium: %r",
                 medium
             )
+            return None
+        if not searchAttr:
             return None
         try:
             server = ldap3.Server(
