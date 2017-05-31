@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright 2014 OpenMarket Ltd
+# Copyright 2017 Slipeer <Slipeer@gmail.com>
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -47,10 +47,14 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class LDAPDatabase:
     def __init__(self, syd):
         if not ldap3:
-            logger.info("Missing ldap3 library. This is required for LDAP integration")
+            logger.info(
+                "Missing ldap3 library."
+                "This is required for LDAP integration"
+            )
             return
 
         self.sydent = syd
@@ -60,11 +64,17 @@ class LDAPDatabase:
         self.base = self.sydent.cfg.get("ldap", "base")
         self.email = self.sydent.cfg.get("ldap", "email")
         self.msisdn = self.sydent.cfg.get("ldap", "msisdn")
-        self.id_attr = self.sydent.cfg.get("ldap", "id_attr").replace('"','').replace("'","")
-        self.hs_name = self.sydent.cfg.get("ldap", "hs_name").replace('"','').replace("'","")
+        self.id_attr = self.sydent.cfg.get(
+            "ldap", "id_attr"
+        ).replace('"', '').replace("'", "")
+        self.hs_name = self.sydent.cfg.get(
+            "ldap", "hs_name"
+        ).replace('"', '').replace("'", "")
         self.bind_dn = self.sydent.cfg.get("ldap", "bind_dn")
         self.bind_pw = self.sydent.cfg.get("ldap", "bind_pw")
-        self.ldap_filter = self.sydent.cfg.get("ldap", "filter").replace('"','').replace("'","")
+        self.ldap_filter = self.sydent.cfg.get(
+            "ldap", "filter"
+        ).replace('"', '').replace("'", "")
 
     def HasLdapConfiguration(self):
         if hasattr(self, 'ldap_uri'):
@@ -74,22 +84,30 @@ class LDAPDatabase:
             # No configuration
             return False
 
-    def getMxid(self,medium,address):
+    def getMxid(self, medium, address):
         if hasattr(self, medium):
             searchAttr = getattr(self, medium)
         else:
-            logger.warning("Unsupported or unconfigured 3pid medium: %r", medium)
+            logger.warning(
+                "Unsupported or unconfigured 3pid medium: %r",
+                medium
+            )
             return None
         try:
             server = ldap3.Server(
-                host = self.ldap_uri.lower(),
+                host=self.ldap_uri.lower(),
                 get_info=None
             )
             logger.debug(
                 "Attempting LDAP connection with %s",
                 self.ldap_uri
             )
-            conn = ldap3.Connection(server, user=self.bind_dn, password=self.bind_pw, auto_bind='NONE')
+            conn = ldap3.Connection(
+                server,
+                user=self.bind_dn,
+                password=self.bind_pw,
+                auto_bind='NONE'
+            )
             if (not conn):
                 logger.debug("Can't connect to %s", self.ldap_uri)
                 return None
@@ -99,10 +117,16 @@ class LDAPDatabase:
             if (conn.bind()):
                 logger.debug("LDAP bind succefull as %s", self.bind_dn)
             else:
-                logger.debug("LDAP bind as %s error: %s", self.bind_dn, conn.result['description'])
-            conn.search(search_base=self.base,
-                 search_filter="(&(" + searchAttr + "=" + address + ")" + self.ldap_filter + ")",
-                 attributes=[self.id_attr, searchAttr]
+                logger.debug(
+                    "LDAP bind as %s error: %s",
+                    self.bind_dn,
+                    conn.result['description']
+                )
+            conn.search(
+                search_base=self.base,
+                search_filter="(&(" + searchAttr + "=" + address + ")"
+                + self.ldap_filter + ")",
+                attributes=[self.id_attr, searchAttr]
             )
             responses = [
                 response
@@ -111,14 +135,25 @@ class LDAPDatabase:
                 if response['type'] == 'searchResEntry'
             ]
 
-            logger.debug("LDAP return %d records for filter: %s", len(responses), "(&(" + searchAttr + "=" + address + ")" + self.ldap_filter + ")")
+            logger.debug(
+                "LDAP return %d records for filter: %s",
+                len(responses),
+                "(&(" + searchAttr + "=" + address + ")"
+                + self.ldap_filter + ")"
+            )
 
             if len(responses) == 1:
-                logger.debug("LDAP found one record with %s = %s", searchAttr, address)
-                # # if hs_name empty we assume that id_attr contain users matrix id
-                # # othercase we generate matrix id as @id_attr:hs_name
+                logger.debug(
+                    "LDAP found one record with %s = %s",
+                    searchAttr,
+                    address
+                )
+                # if hs_name empty we assume that id_attr contain user
+                # matrix id othercase we generate matrix id
+                # as @id_attr:hs_name
                 if (self.hs_name):
-                    mxid = "@" + responses[0]['attributes'][self.id_attr][0] +  ":" + self.hs_name
+                    mxid = "@" + responses[0]['attributes'][self.id_attr][0] \
+                        + ":" + self.hs_name
                 else:
                     mxid = responses[0]['attributes'][self.id_attr][0]
                 conn.unbind

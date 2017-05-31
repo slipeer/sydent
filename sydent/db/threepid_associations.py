@@ -160,7 +160,6 @@ class GlobalAssociationStore:
         else:
             # Search all in database
             threepid_for_db_lookup = threepid_tuples
-        # TODO I think we don't perform 3pid assotiation if it exists in LDAP.
         cur = self.sydent.db.cursor()
         cur.execute("CREATE TEMPORARY TABLE tmp_getmxids (medium VARCHAR(16), address VARCHAR(256))");
         cur.execute("CREATE INDEX tmp_getmxids_medium_lower_address ON tmp_getmxids (medium, lower(address))");
