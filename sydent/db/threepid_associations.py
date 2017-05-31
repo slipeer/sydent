@@ -163,18 +163,24 @@ class GlobalAssociationStore:
             threepid_for_db_lookup = threepid_tuples
 
         # proxy request to matrix.org
-        req = requests.post(
-            "https://matrix.org/_matrix/identity/api/v1/bulk_lookup",
-            json={'threepids': threepid_for_db_lookup}
-        )
-        if req.status_code == requests.codes.ok:
-            logger.info("Proxy result: %r", req.json())
-        else:
-            logger.error("Error %d in proxy request: %r", req.status_code, req.json())
-        if 'threepids' in req.json():
-            for res in req.json()['threepids']:
-                results.append(res)
-                threepid_for_db_lookup.remove([res[0], res[1]])
+        try:
+            proxy = self.sydent.cfg.get("proxy", "identity")
+        except:
+            proxy = None
+        logger.info("Proxy config: %r", proxy)
+        if proxy:
+            req = requests.post(
+                proxy + "/_matrix/identity/api/v1/bulk_lookup",
+                json={'threepids': threepid_for_db_lookup}
+            )
+            if req.status_code == requests.codes.ok:
+                logger.info("Proxy result: %r", req.json())
+            else:
+                logger.error("Error %d in proxy request: %r", req.status_code, req.json())
+            if 'threepids' in req.json():
+                for res in req.json()['threepids']:
+                    results.append(res)
+                    threepid_for_db_lookup.remove([res[0], res[1]])
 
         cur = self.sydent.db.cursor()
         cur.execute("CREATE TEMPORARY TABLE tmp_getmxids (medium VARCHAR(16), address VARCHAR(256))");
