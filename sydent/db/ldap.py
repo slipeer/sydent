@@ -165,7 +165,7 @@ class LDAPDatabase:
                 else:
                     mxid = responses[0]['attributes'][self.id_attr][0]
                 conn.unbind
-                return (medium, address, mxid)
+                return (medium, address, mxid.lower())
 
             conn.unbind
             return None
